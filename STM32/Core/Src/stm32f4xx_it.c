@@ -22,6 +22,8 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "main.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,7 +48,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
+static void clearUartISr(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -60,7 +62,7 @@ extern TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
-static void clearUartISr(void);
+
 /******************************************************************************/
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
@@ -204,9 +206,7 @@ void SysTick_Handler(void)
   */
 void DMA1_Stream5_IRQHandler(void)
 {
-	//clearUartISr();
-
-	  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
+  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
     if (LL_DMA_IsEnabledIT_HT(DMA1, LL_DMA_STREAM_5) && LL_DMA_IsActiveFlag_HT5(DMA1))
     {
         LL_DMA_ClearFlag_HT5(DMA1);
@@ -247,8 +247,6 @@ void DMA1_Stream6_IRQHandler(void)
 	  {
 	    LL_DMA_ClearFlag_TC6(DMA1);
 	    DMA1_TxComplete_Callback();
-	    /* Call function Transmission complete Callback */
-	    //USART1_DMA2_TransmitComplete_Callback();
 	  }
 	  else if(LL_DMA_IsActiveFlag_TE6(DMA1))
 	  {
@@ -277,6 +275,23 @@ void TIM1_UP_TIM10_IRQHandler(void)
   /* USER CODE END TIM1_UP_TIM10_IRQn 1 */
 }
 
+/**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART2_IRQn 0 */
+
+  /* USER CODE END USART2_IRQn 0 */
+  /* USER CODE BEGIN USART2_IRQn 1 */
+
+	/* USART IDLE line detected */
+	clearUartISr();
+
+  /* USER CODE END USART2_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
 static void clearUartISr(void)
 {
     if ((LL_USART_IsEnabledIT_IDLE(USART2)) && (LL_USART_IsActiveFlag_IDLE(USART2)))
@@ -323,23 +338,5 @@ static void clearUartISr(void)
     }
 
 }
-
-/**
-  * @brief This function handles USART2 global interrupt.
-  */
-void USART2_IRQHandler(void)
-{
-  /* USER CODE BEGIN USART2_IRQn 0 */
-
-  /* USER CODE END USART2_IRQn 0 */
-  /* USER CODE BEGIN USART2_IRQn 1 */
-
-	/* USART IDLE line detected */
-	clearUartISr();
-
-  /* USER CODE END USART2_IRQn 1 */
-}
-
-/* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */

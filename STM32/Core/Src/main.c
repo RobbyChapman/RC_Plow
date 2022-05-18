@@ -17,15 +17,13 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "main.h"
-
-#define DMA_BUF_SIZE	8
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -36,6 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DMA_BUF_SIZE	8
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,25 +44,23 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+/* USER CODE BEGIN PV */
 static volatile bool rxCompl = false;
 static volatile bool rxErr = false;
-
 static volatile bool txCompl = false;
 static volatile bool txErr = false;
-/* USER CODE BEGIN PV */
 uint8_t txBuffer[DMA_BUF_SIZE] = {0};
 uint8_t rxBuffer[DMA_BUF_SIZE] = {0};
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-static void StartTransfers(void);
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void StartTransfers(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -102,85 +99,31 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
-
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	while (1) {
+
+		if (rxCompl == true) {
+			rxCompl = false;
+			StartTransfers();
+			//LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
+			//LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
+		}
+
+		if (txCompl == true) {
+			txCompl = false;
+			LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_6);
+		}
+
     /* USER CODE END WHILE */
 
-	    if (rxCompl == true)
-	    {
-	    	rxCompl = false;
-	    	StartTransfers();
-	    	//LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
-	    	//LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
-	    }
-
-	    if (txCompl == true)
-	    {
-	    	txCompl = false;
-	    	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_6);
-	    }
-
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
-}
-
-void DMA1_RxComplete_Callback(void)
-{
-	rxCompl = true;
-	memcpy(&txBuffer[0], &rxBuffer[0], sizeof(rxBuffer));
-}
-
-void UART2_FrameIdle_Callback(void)
-{
-	if (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5))
-	{
-		/* Reset DMA */
-		LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
-	}
-	memset(&rxBuffer, 0, sizeof(rxBuffer));
-	LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, LL_USART_DMA_GetRegAddr(USART2), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_5));
-	LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(rxBuffer));
-	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
-}
-
-void DMA1_RxError_Callback(void)
-{
-	rxErr = true;
-}
-
-void DMA1_TxComplete_Callback(void)
-{
-	txCompl = true;
-}
-
-void DMA1_TxError_Callback(void)
-{
-	txErr = true;
-}
-
-static void StartTransfers(void)
-{
-	txCompl = false;
-	txErr = false;
-
-	/* Enable DMA TX Interrupt */
-	LL_USART_EnableDMAReq_TX(USART2);
-
-	/* Enable DMA Channel Rx */
-	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_6);
-
-	while (txCompl == false) {
-	}
-	/* Disable DMA1 Tx Channel */
-	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_6);
 }
 
 /**
@@ -242,7 +185,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 0 */
 
-  LL_USART_InitTypeDef USART_InitStruct = {0};
+	LL_USART_InitTypeDef USART_InitStruct = {0};
 
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -283,12 +226,6 @@ static void MX_USART2_UART_Init(void)
 
   LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_5);
 
-  //LL_DMA_DIRECTION_PERIPH_TO_MEMORY
-  //LL_DMA_ConfigAddresses(DMA_TypeDef* DMAx, uint32_t Stream, uint32_t SrcAddress, uint32_t DstAddress, uint32_t Direction)
-  LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, LL_USART_DMA_GetRegAddr(USART2), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_5));
-
-  LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(rxBuffer));
-
   /* USART2_TX Init */
   LL_DMA_SetChannelSelection(DMA1, LL_DMA_STREAM_6, LL_DMA_CHANNEL_4);
 
@@ -308,11 +245,11 @@ static void MX_USART2_UART_Init(void)
 
   LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_6);
 
-  LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_6, (uint32_t)txBuffer, LL_USART_DMA_GetRegAddr(USART2), LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_6));
-
-  LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_6, sizeof(txBuffer));
-
   /* USART2 interrupt Init */
+  NVIC_SetPriority(USART2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+  NVIC_EnableIRQ(USART2_IRQn);
+
+  /* USER CODE BEGIN USART2_Init 1 */
   NVIC_SetPriority(USART2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
   NVIC_EnableIRQ(USART2_IRQn);
 
@@ -322,7 +259,22 @@ static void MX_USART2_UART_Init(void)
   NVIC_SetPriority(DMA1_Stream6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
   NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
-  /* USER CODE BEGIN USART2_Init 1 */
+  LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, LL_USART_DMA_GetRegAddr(USART2), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_5));
+
+  LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(rxBuffer));
+
+  LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_6, (uint32_t)txBuffer, LL_USART_DMA_GetRegAddr(USART2), LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_6));
+
+  LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_6, sizeof(txBuffer));
+
+  NVIC_SetPriority(USART2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(USART2_IRQn);
+
+  NVIC_SetPriority(DMA1_Stream5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+  NVIC_SetPriority(DMA1_Stream6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
   /* USER CODE END USART2_Init 1 */
   USART_InitStruct.BaudRate = 115200;
@@ -334,15 +286,13 @@ static void MX_USART2_UART_Init(void)
   USART_InitStruct.OverSampling = LL_USART_OVERSAMPLING_16;
   LL_USART_Init(USART2, &USART_InitStruct);
   LL_USART_ConfigAsyncMode(USART2);
+  LL_USART_Enable(USART2);
+	/* USER CODE BEGIN USART2_Init 2 */
 
+	LL_DMA_EnableIT_HT(DMA1, LL_DMA_STREAM_5);
+	LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_5);
 
-  LL_DMA_EnableIT_HT(DMA1, LL_DMA_STREAM_5);
-  LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_5);
-
-
-
-
-    LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_6);
+	LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_6);
 	LL_DMA_EnableIT_TE(DMA1, LL_DMA_STREAM_6);
 	LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_5);
 	LL_DMA_EnableIT_TE(DMA1, LL_DMA_STREAM_5);
@@ -353,9 +303,6 @@ static void MX_USART2_UART_Init(void)
 	LL_USART_Enable(USART2);
 	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_6);
 	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
-
-  /* USER CODE BEGIN USART2_Init 2 */
-
   /* USER CODE END USART2_Init 2 */
 
 }
@@ -426,7 +373,56 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void DMA1_RxComplete_Callback(void)
+{
+	rxCompl = true;
+	memcpy(&txBuffer[0], &rxBuffer[0], sizeof(rxBuffer));
+}
 
+void UART2_FrameIdle_Callback(void)
+{
+	if (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5))
+	{
+		/* Reset DMA */
+		LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
+	}
+	memset(&rxBuffer, 0, sizeof(rxBuffer));
+	LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, LL_USART_DMA_GetRegAddr(USART2), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_STREAM_5));
+	LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(rxBuffer));
+	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
+}
+
+void DMA1_RxError_Callback(void)
+{
+	rxErr = true;
+}
+
+void DMA1_TxComplete_Callback(void)
+{
+	txCompl = true;
+}
+
+void DMA1_TxError_Callback(void)
+{
+	txErr = true;
+}
+
+static void StartTransfers(void)
+{
+	txCompl = false;
+	txErr = false;
+
+	/* Enable DMA TX Interrupt */
+	LL_USART_EnableDMAReq_TX(USART2);
+
+	/* Enable DMA Channel Rx */
+	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_6);
+
+	while (txCompl == false) {
+	}
+	/* Disable DMA1 Tx Channel */
+	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_6);
+}
 /* USER CODE END 4 */
 
 /**
