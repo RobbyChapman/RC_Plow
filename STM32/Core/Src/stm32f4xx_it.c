@@ -60,7 +60,7 @@ extern TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
-
+static void clearUartISr(void);
 /******************************************************************************/
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
@@ -204,7 +204,14 @@ void SysTick_Handler(void)
   */
 void DMA1_Stream5_IRQHandler(void)
 {
-  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
+	//clearUartISr();
+
+	  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
+    if (LL_DMA_IsEnabledIT_HT(DMA1, LL_DMA_STREAM_5) && LL_DMA_IsActiveFlag_HT5(DMA1))
+    {
+        LL_DMA_ClearFlag_HT5(DMA1);
+    }
+
 	  if(LL_DMA_IsActiveFlag_TC5(DMA1))
 	  {
 	    LL_DMA_ClearFlag_TC5(DMA1);
@@ -213,6 +220,7 @@ void DMA1_Stream5_IRQHandler(void)
 	  }
 	  else if(LL_DMA_IsActiveFlag_TE5(DMA1))
 	  {
+		  LL_DMA_ClearFlag_TE5(DMA1);
 	    /* Call Error function */
 		  DMA1_RxError_Callback();
 	  }
@@ -229,6 +237,12 @@ void DMA1_Stream5_IRQHandler(void)
 void DMA1_Stream6_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
+
+    if (LL_DMA_IsEnabledIT_HT(DMA1, LL_DMA_STREAM_6) && LL_DMA_IsActiveFlag_HT6(DMA1))
+    {
+        LL_DMA_ClearFlag_HT6(DMA1);
+    }
+
 	  if(LL_DMA_IsActiveFlag_TC6(DMA1))
 	  {
 	    LL_DMA_ClearFlag_TC6(DMA1);
@@ -238,6 +252,7 @@ void DMA1_Stream6_IRQHandler(void)
 	  }
 	  else if(LL_DMA_IsActiveFlag_TE6(DMA1))
 	  {
+		  LL_DMA_ClearFlag_TE6(DMA1);
 	    /* Call Error function */
 		  DMA1_TxError_Callback();
 	  }
@@ -262,6 +277,53 @@ void TIM1_UP_TIM10_IRQHandler(void)
   /* USER CODE END TIM1_UP_TIM10_IRQn 1 */
 }
 
+static void clearUartISr(void)
+{
+    if ((LL_USART_IsEnabledIT_IDLE(USART2)) && (LL_USART_IsActiveFlag_IDLE(USART2)))
+    {
+        LL_USART_ClearFlag_IDLE(USART2);
+        UART2_FrameIdle_Callback();
+    }
+
+    /* USART Parity Error Detected */
+    if ((LL_USART_IsEnabledIT_PE(USART2)) && (LL_USART_IsActiveFlag_PE(USART2)))
+    {
+        LL_USART_ClearFlag_PE(USART2);
+    }
+
+    /* Noise error detected  */
+    if (LL_USART_IsActiveFlag_NE(USART2))
+    {
+        LL_USART_ClearFlag_NE(USART2);
+    }
+
+    /* USART Frame Error Detected */
+    if (LL_USART_IsActiveFlag_FE(USART2))
+    {
+        LL_USART_ClearFlag_FE(USART2);
+    }
+
+    /* USART Transmit Data Register Empty */
+    if ((LL_USART_IsEnabledIT_RXNE(USART2)) && (LL_USART_IsActiveFlag_RXNE(USART2)))
+    {
+        LL_USART_ClearFlag_RXNE(USART2);
+    }
+
+
+    /* USART LIN Break Detection*/
+    if ((LL_USART_IsEnabledIT_LBD(USART2)) && (LL_USART_IsActiveFlag_LBD(USART2)))
+    {
+    	LL_USART_ClearFlag_LBD(USART2);
+    }
+
+    /* USART Clear To Send Detection*/
+    if ((LL_USART_IsEnabledIT_CTS(USART2)) && (LL_USART_IsActiveFlag_nCTS(USART2)))
+    {
+        LL_USART_ClearFlag_nCTS(USART2);
+    }
+
+}
+
 /**
   * @brief This function handles USART2 global interrupt.
   */
@@ -271,6 +333,9 @@ void USART2_IRQHandler(void)
 
   /* USER CODE END USART2_IRQn 0 */
   /* USER CODE BEGIN USART2_IRQn 1 */
+
+	/* USART IDLE line detected */
+	clearUartISr();
 
   /* USER CODE END USART2_IRQn 1 */
 }
