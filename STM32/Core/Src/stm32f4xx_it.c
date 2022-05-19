@@ -48,7 +48,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-static void clearUartISr(void);
+static void clearUartISr(USART_TypeDef *uart);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -276,6 +276,19 @@ void TIM1_UP_TIM10_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+	clearUartISr(USART1);
+  /* USER CODE END USART1_IRQn 0 */
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
+}
+
+/**
   * @brief This function handles USART2 global interrupt.
   */
 void USART2_IRQHandler(void)
@@ -286,55 +299,122 @@ void USART2_IRQHandler(void)
   /* USER CODE BEGIN USART2_IRQn 1 */
 
 	/* USART IDLE line detected */
-	clearUartISr();
+	clearUartISr(USART2);
 
   /* USER CODE END USART2_IRQn 1 */
 }
 
-/* USER CODE BEGIN 1 */
-static void clearUartISr(void)
+/**
+  * @brief This function handles DMA2 stream2 global interrupt.
+  */
+void DMA2_Stream2_IRQHandler(void)
 {
-    if ((LL_USART_IsEnabledIT_IDLE(USART2)) && (LL_USART_IsActiveFlag_IDLE(USART2)))
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 0 */
+    if (LL_DMA_IsEnabledIT_HT(DMA2, LL_DMA_STREAM_2) && LL_DMA_IsActiveFlag_HT2(DMA2))
     {
-        LL_USART_ClearFlag_IDLE(USART2);
-        UART2_FrameIdle_Callback();
+        LL_DMA_ClearFlag_HT2(DMA2);
+    }
+
+	  if(LL_DMA_IsActiveFlag_TC2(DMA2))
+	  {
+	    LL_DMA_ClearFlag_TC2(DMA2);
+	    /* Call function Transmission complete Callback */
+	    DMA2_RxComplete_Callback();
+	  }
+	  else if(LL_DMA_IsActiveFlag_TE2(DMA2))
+	  {
+		  LL_DMA_ClearFlag_TE2(DMA2);
+	    /* Call Error function */
+		  DMA2_RxError_Callback();
+	  }
+  /* USER CODE END DMA2_Stream2_IRQn 0 */
+
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream7 global interrupt.
+  */
+void DMA2_Stream7_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream7_IRQn 0 */
+    if (LL_DMA_IsEnabledIT_HT(DMA2, LL_DMA_STREAM_7) && LL_DMA_IsActiveFlag_HT7(DMA2))
+    {
+        LL_DMA_ClearFlag_HT7(DMA2);
+    }
+
+	  if(LL_DMA_IsActiveFlag_TC7(DMA2))
+	  {
+	    LL_DMA_ClearFlag_TC7(DMA2);
+	    /* Call function Transmission complete Callback */
+	    DMA2_TxComplete_Callback();
+	  }
+	  else if(LL_DMA_IsActiveFlag_TE7(DMA2))
+	  {
+		  LL_DMA_ClearFlag_TE7(DMA2);
+	    /* Call Error function */
+		  DMA2_TxError_Callback();
+	  }
+  /* USER CODE END DMA2_Stream7_IRQn 0 */
+
+  /* USER CODE BEGIN DMA2_Stream7_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream7_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
+static void clearUartISr(USART_TypeDef *uart)
+{
+    if ((LL_USART_IsEnabledIT_IDLE(uart)) && (LL_USART_IsActiveFlag_IDLE(uart)))
+    {
+        LL_USART_ClearFlag_IDLE(uart);
+        if (uart == USART1)
+        {
+        	UART1_FrameIdle_Callback();
+        }
+        else
+        {
+        	UART2_FrameIdle_Callback();
+        }
     }
 
     /* USART Parity Error Detected */
-    if ((LL_USART_IsEnabledIT_PE(USART2)) && (LL_USART_IsActiveFlag_PE(USART2)))
+    if ((LL_USART_IsEnabledIT_PE(uart)) && (LL_USART_IsActiveFlag_PE(uart)))
     {
-        LL_USART_ClearFlag_PE(USART2);
+        LL_USART_ClearFlag_PE(uart);
     }
 
     /* Noise error detected  */
-    if (LL_USART_IsActiveFlag_NE(USART2))
+    if (LL_USART_IsActiveFlag_NE(uart))
     {
-        LL_USART_ClearFlag_NE(USART2);
+        LL_USART_ClearFlag_NE(uart);
     }
 
     /* USART Frame Error Detected */
-    if (LL_USART_IsActiveFlag_FE(USART2))
+    if (LL_USART_IsActiveFlag_FE(uart))
     {
-        LL_USART_ClearFlag_FE(USART2);
+        LL_USART_ClearFlag_FE(uart);
     }
 
     /* USART Transmit Data Register Empty */
-    if ((LL_USART_IsEnabledIT_RXNE(USART2)) && (LL_USART_IsActiveFlag_RXNE(USART2)))
+    if ((LL_USART_IsEnabledIT_RXNE(uart)) && (LL_USART_IsActiveFlag_RXNE(uart)))
     {
-        LL_USART_ClearFlag_RXNE(USART2);
+        LL_USART_ClearFlag_RXNE(uart);
     }
 
 
     /* USART LIN Break Detection*/
-    if ((LL_USART_IsEnabledIT_LBD(USART2)) && (LL_USART_IsActiveFlag_LBD(USART2)))
+    if ((LL_USART_IsEnabledIT_LBD(uart)) && (LL_USART_IsActiveFlag_LBD(uart)))
     {
-    	LL_USART_ClearFlag_LBD(USART2);
+    	LL_USART_ClearFlag_LBD(uart);
     }
 
     /* USART Clear To Send Detection*/
-    if ((LL_USART_IsEnabledIT_CTS(USART2)) && (LL_USART_IsActiveFlag_nCTS(USART2)))
+    if ((LL_USART_IsEnabledIT_CTS(uart)) && (LL_USART_IsActiveFlag_nCTS(uart)))
     {
-        LL_USART_ClearFlag_nCTS(USART2);
+        LL_USART_ClearFlag_nCTS(uart);
     }
 
 }

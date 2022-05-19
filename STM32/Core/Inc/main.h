@@ -69,6 +69,12 @@ void DMA1_TxComplete_Callback(void);
 void DMA1_RxComplete_Callback(void);
 void UART2_FrameIdle_Callback(void);
 
+void DMA2_RxError_Callback(void);
+void DMA2_TxError_Callback(void);
+void DMA2_TxComplete_Callback(void);
+void DMA2_RxComplete_Callback(void);
+void UART1_FrameIdle_Callback(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
