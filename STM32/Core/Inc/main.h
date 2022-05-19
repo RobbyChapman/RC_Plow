@@ -63,12 +63,6 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void DMA1_RxError_Callback(void);
-void DMA1_TxError_Callback(void);
-void DMA1_TxComplete_Callback(void);
-void DMA1_RxComplete_Callback(void);
-void UART2_FrameIdle_Callback(void);
-
 void DMA2_RxError_Callback(void);
 void DMA2_TxError_Callback(void);
 void DMA2_TxComplete_Callback(void);
@@ -80,10 +74,6 @@ void UART1_FrameIdle_Callback(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin LL_GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
-#define USART_TX_Pin LL_GPIO_PIN_2
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin LL_GPIO_PIN_3
-#define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin LL_GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
 #define TMS_Pin LL_GPIO_PIN_13
