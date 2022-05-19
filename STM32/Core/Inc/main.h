@@ -90,8 +90,12 @@ void UART1_FrameIdle_Callback(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin LL_GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
-#define SWO_Pin LL_GPIO_PIN_3
-#define SWO_GPIO_Port GPIOB
+#define DEBUG_1_Pin LL_GPIO_PIN_3
+#define DEBUG_1_GPIO_Port GPIOB
+#define DEBUG_3_Pin LL_GPIO_PIN_4
+#define DEBUG_3_GPIO_Port GPIOB
+#define DEBUG_2_Pin LL_GPIO_PIN_5
+#define DEBUG_2_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

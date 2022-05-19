@@ -34,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DMA_BUF_SIZE	8
+#define DMA_BUF_SIZE	32
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -126,13 +126,16 @@ int main(void)
 
 		if (rxComplNew == true) {
 			rxComplNew = false;
+			resetDmaRx2();
 			StartTransferNew();
 		}
 
 		if (txComplNew == true) {
 			txComplNew = false;
+			/* Disable DMA1 Tx Channel */
+			LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
+			LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
 			resetDmaTx2();
-			resetDmaRx2();
 		}
 
     /* USER CODE END WHILE */
@@ -504,6 +507,9 @@ static void MX_GPIO_Init(void)
   LL_GPIO_ResetOutputPin(LD2_GPIO_Port, LD2_Pin);
 
   /**/
+  LL_GPIO_ResetOutputPin(GPIOB, DEBUG_1_Pin|DEBUG_3_Pin|DEBUG_2_Pin);
+
+  /**/
   LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTC, LL_SYSCFG_EXTI_LINE13);
 
   /**/
@@ -526,6 +532,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /**/
+  GPIO_InitStruct.Pin = DEBUG_1_Pin|DEBUG_3_Pin|DEBUG_2_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -584,7 +598,6 @@ void DMA2_TxComplete_Callback(void)
 
 void DMA2_RxComplete_Callback(void)
 {
-	rxComplNew = true;
 	memcpy(&txBufferNew[0], &rxBufferNew[0], sizeof(rxBufferNew));
 }
 
@@ -616,7 +629,10 @@ static void resetDmaRx2(void)
 
 void UART1_FrameIdle_Callback(void)
 {
-	//resetDmaRx2();
+	LL_GPIO_SetOutputPin(GPIOB, DEBUG_1_Pin);
+	LL_GPIO_ResetOutputPin(GPIOB, DEBUG_1_Pin);
+	rxComplNew = true;
+
 }
 
 static void StartTransferNew(void)
@@ -627,13 +643,10 @@ static void StartTransferNew(void)
 	/* Enable DMA TX Interrupt */
 	LL_USART_EnableDMAReq_TX(USART1);
 
+	LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
+
 	/* Enable DMA Channel Rx */
 	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
-
-	while (txComplNew == false) {
-	}
-	/* Disable DMA1 Tx Channel */
-	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
 }
 
 static void StartTransfers(void)
