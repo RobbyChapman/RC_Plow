@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -44,6 +45,41 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for iBusRxTask */
+osThreadId_t iBusRxTaskHandle;
+const osThreadAttr_t iBusRxTask_attributes = {
+  .name = "iBusRxTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for heartbeatTask */
+osThreadId_t heartbeatTaskHandle;
+const osThreadAttr_t heartbeatTask_attributes = {
+  .name = "heartbeatTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for encoderSafetyTa */
+osThreadId_t encoderSafetyTaHandle;
+const osThreadAttr_t encoderSafetyTa_attributes = {
+  .name = "encoderSafetyTa",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal7,
+};
+/* Definitions for motorControlTas */
+osThreadId_t motorControlTasHandle;
+const osThreadAttr_t motorControlTas_attributes = {
+  .name = "motorControlTas",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityBelowNormal6,
+};
 /* USER CODE BEGIN PV */
 static volatile bool rxCompl = false;
 static volatile bool rxErr = false;
@@ -60,6 +96,12 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+void StartDefaultTask(void *argument);
+void StartRxTask(void *argument);
+void StartHeartbeatTask(void *argument);
+void StartEncoderSafetyTask(void *argument);
+void StartMotorControlTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 static void resetDmaTx(void);
 static void resetDmaRx(void);
@@ -107,29 +149,56 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of iBusRxTask */
+  iBusRxTaskHandle = osThreadNew(StartRxTask, NULL, &iBusRxTask_attributes);
+
+  /* creation of heartbeatTask */
+  heartbeatTaskHandle = osThreadNew(StartHeartbeatTask, NULL, &heartbeatTask_attributes);
+
+  /* creation of encoderSafetyTa */
+  encoderSafetyTaHandle = osThreadNew(StartEncoderSafetyTask, NULL, &encoderSafetyTa_attributes);
+
+  /* creation of motorControlTas */
+  motorControlTasHandle = osThreadNew(StartMotorControlTask, NULL, &motorControlTas_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-
-		if (rxCompl == true) {
-			rxCompl = false;
-			resetDmaRx();
-			if ((txBufCpy[0] == 0x20) && (txBufCpy[1] == 0x40))
-			{
-				/* Placeholder. Parsing of frame will go here */
-				LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
-				LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
-			}
-			StartTransfer();
-		}
-
-		if (txCompl == true) {
-			txCompl = false;
-			/* Disable DMA1 Tx Channel */
-			LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
-
-			resetDmaTx();
-		}
 
     /* USER CODE END WHILE */
 
@@ -258,7 +327,7 @@ static void MX_USART1_UART_Init(void)
   LL_DMA_DisableFifoMode(DMA2, LL_DMA_STREAM_7);
 
   /* USART1 interrupt Init */
-  NVIC_SetPriority(USART1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+  NVIC_SetPriority(USART1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),5, 0));
   NVIC_EnableIRQ(USART1_IRQn);
 
   /* USER CODE BEGIN USART1_Init 1 */
@@ -331,10 +400,10 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream2_IRQn interrupt configuration */
-  NVIC_SetPriority(DMA2_Stream2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+  NVIC_SetPriority(DMA2_Stream2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),5, 0));
   NVIC_EnableIRQ(DMA2_Stream2_IRQn);
   /* DMA2_Stream7_IRQn interrupt configuration */
-  NVIC_SetPriority(DMA2_Stream7_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+  NVIC_SetPriority(DMA2_Stream7_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),5, 0));
   NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
 }
@@ -464,6 +533,113 @@ static void StartTransfer(void)
 }
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartRxTask */
+/**
+* @brief Function implementing the iBusRxTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartRxTask */
+void StartRxTask(void *argument)
+{
+  /* USER CODE BEGIN StartRxTask */
+  /* Infinite loop */
+	for (;;) {
+		if (rxCompl == true) {
+			rxCompl = false;
+			resetDmaRx();
+			if ((txBufCpy[0] == 0x20) && (txBufCpy[1] == 0x40)) {
+				/* Placeholder. Parsing of frame will go here */
+				LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
+				LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
+			}
+			StartTransfer();
+		}
+
+		if (txCompl == true) {
+			txCompl = false;
+			/* Disable DMA1 Tx Channel */
+			LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
+
+			resetDmaTx();
+		}
+	}
+  /* USER CODE END StartRxTask */
+}
+
+/* USER CODE BEGIN Header_StartHeartbeatTask */
+/**
+* @brief Function implementing the heartbeatTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartHeartbeatTask */
+void StartHeartbeatTask(void *argument)
+{
+  /* USER CODE BEGIN StartHeartbeatTask */
+	LL_GPIO_SetPinMode(GPIOA, GPIO_PIN_5, LL_GPIO_MODE_OUTPUT);
+	/* Infinite loop */
+	for (;;) {
+		LL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		osDelay(500);
+	}
+  /* USER CODE END StartHeartbeatTask */
+}
+
+/* USER CODE BEGIN Header_StartEncoderSafetyTask */
+/**
+* @brief Function implementing the encoderSafetyTa thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartEncoderSafetyTask */
+void StartEncoderSafetyTask(void *argument)
+{
+  /* USER CODE BEGIN StartEncoderSafetyTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartEncoderSafetyTask */
+}
+
+/* USER CODE BEGIN Header_StartMotorControlTask */
+/**
+* @brief Function implementing the motorControlTas thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartMotorControlTask */
+void StartMotorControlTask(void *argument)
+{
+  /* USER CODE BEGIN StartMotorControlTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartMotorControlTask */
+}
 
 /**
   * @brief  Period elapsed callback in non blocking mode
