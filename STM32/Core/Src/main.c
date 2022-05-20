@@ -50,9 +50,9 @@ static volatile bool rxErr = false;
 static volatile bool txCompl = false;
 static volatile bool txErr = false;
 
-uint8_t txBuffer[DMA_BUF_SIZE] = {0};
-uint8_t rxBuffer[DMA_BUF_SIZE] = {0};
-
+static volatile uint8_t txBufCpy[DMA_BUF_SIZE] = {0};
+static volatile uint8_t txBuffer[DMA_BUF_SIZE] = {0};
+static volatile uint8_t rxBuffer[DMA_BUF_SIZE] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,8 +78,9 @@ static void StartTransfer(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	  memset(&rxBuffer, 0, sizeof(rxBuffer));
-	  memset(&txBuffer, 0, sizeof(txBuffer));
+	  memset((void *)&rxBuffer, 0, sizeof(rxBuffer));
+	  memset((void *)&txBuffer, 0, sizeof(txBuffer));
+	  memset((void *)&txBufCpy, 0, sizeof(txBufCpy));
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -113,6 +114,12 @@ int main(void)
 		if (rxCompl == true) {
 			rxCompl = false;
 			resetDmaRx();
+			if ((txBufCpy[0] == 0x20) && (txBufCpy[1] == 0x40))
+			{
+				/* Placeholder. Parsing of frame will go here */
+				LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
+				LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
+			}
 			StartTransfer();
 		}
 
@@ -120,7 +127,7 @@ int main(void)
 			txCompl = false;
 			/* Disable DMA1 Tx Channel */
 			LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
-			LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
+
 			resetDmaTx();
 		}
 
@@ -406,7 +413,9 @@ void DMA2_TxComplete_Callback(void)
 
 void DMA2_RxComplete_Callback(void)
 {
-	memcpy(&txBuffer[0], &rxBuffer[0], sizeof(rxBuffer));
+	memset((void *)&txBufCpy, 0, sizeof(txBufCpy));
+	memcpy((void *)&txBufCpy[0], (void *)&rxBuffer[0], sizeof(rxBuffer));
+	memcpy((void *)&txBuffer[0], (void *)&rxBuffer[0], sizeof(rxBuffer));
 }
 
 static void resetDmaTx(void)
@@ -416,7 +425,7 @@ static void resetDmaTx(void)
 		/* Reset DMA */
 		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
 	}
-	memset(&txBuffer, 0, sizeof(txBuffer));
+	memset((void *)&txBuffer, 0, sizeof(txBuffer));
 	LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_7, (uint32_t)txBuffer, LL_USART_DMA_GetRegAddr(USART1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_7));
 	LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_7, sizeof(txBuffer));
 	//LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
@@ -429,7 +438,7 @@ static void resetDmaRx(void)
 		/* Reset DMA */
 		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
 	}
-	memset(&rxBuffer, 0, sizeof(rxBuffer));
+	memset((void *)&rxBuffer, 0, sizeof(rxBuffer));
 	LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, LL_USART_DMA_GetRegAddr(USART1), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
 	LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_2, sizeof(rxBuffer));
 	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
@@ -449,8 +458,6 @@ static void StartTransfer(void)
 
 	/* Enable DMA TX Interrupt */
 	LL_USART_EnableDMAReq_TX(USART1);
-
-	LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
 
 	/* Enable DMA Channel Rx */
 	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
