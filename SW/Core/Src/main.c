@@ -22,6 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -32,6 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DMA_BUF_SIZE	32
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,7 +81,14 @@ const osThreadAttr_t motorControlTas_attributes = {
   .priority = (osPriority_t) osPriorityBelowNormal6,
 };
 /* USER CODE BEGIN PV */
+static volatile bool rxCompl = false;
+static volatile bool rxErr = false;
+static volatile bool txCompl = false;
+static volatile bool txErr = false;
 
+static volatile uint8_t txBufCpy[DMA_BUF_SIZE] = {0};
+static volatile uint8_t txBuffer[DMA_BUF_SIZE] = {0};
+static volatile uint8_t rxBuffer[DMA_BUF_SIZE] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,7 +103,9 @@ void StartEncoderSafetyTask(void *argument);
 void StartMotorControlTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-
+static void resetDmaTx(void);
+static void resetDmaRx(void);
+static void StartTransfer(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -107,7 +120,9 @@ void StartMotorControlTask(void *argument);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	  memset((void *)&rxBuffer, 0, sizeof(rxBuffer));
+	  memset((void *)&txBuffer, 0, sizeof(txBuffer));
+	  memset((void *)&txBufCpy, 0, sizeof(txBufCpy));
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -183,12 +198,12 @@ int main(void)
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	while (1) {
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -317,6 +332,32 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE BEGIN USART1_Init 1 */
 
+  NVIC_SetPriority(USART1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(USART1_IRQn);
+
+  NVIC_SetPriority(DMA2_Stream2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA2_Stream2_IRQn);
+
+  NVIC_SetPriority(DMA2_Stream7_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+
+  LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, LL_USART_DMA_GetRegAddr(USART1), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
+
+  LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_2, sizeof(rxBuffer));
+
+  LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_7, (uint32_t)txBuffer, LL_USART_DMA_GetRegAddr(USART1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_7));
+
+  LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_7, sizeof(txBuffer));
+
+  NVIC_SetPriority(USART1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(USART1_IRQn);
+
+  NVIC_SetPriority(DMA2_Stream2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA2_Stream2_IRQn);
+
+  NVIC_SetPriority(DMA2_Stream7_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+  NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+
   /* USER CODE END USART1_Init 1 */
   USART_InitStruct.BaudRate = 115200;
   USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
@@ -329,7 +370,20 @@ static void MX_USART1_UART_Init(void)
   LL_USART_ConfigAsyncMode(USART1);
   LL_USART_Enable(USART1);
   /* USER CODE BEGIN USART1_Init 2 */
+	LL_DMA_EnableIT_HT(DMA2, LL_DMA_STREAM_2);
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_2);
 
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_7);
+	LL_DMA_EnableIT_TE(DMA2, LL_DMA_STREAM_7);
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_2);
+	LL_DMA_EnableIT_TE(DMA2, LL_DMA_STREAM_2);
+
+	LL_USART_EnableDMAReq_RX(USART1);
+	LL_USART_EnableDMAReq_TX(USART1);
+	LL_USART_EnableIT_IDLE(USART1);
+	LL_USART_Enable(USART1);
+	//LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
   /* USER CODE END USART1_Init 2 */
 
 }
@@ -411,6 +465,72 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void DMA2_RxError_Callback(void)
+{
+	rxErr = true;
+}
+
+void DMA2_TxError_Callback(void)
+{
+	txErr = true;
+}
+
+void DMA2_TxComplete_Callback(void)
+{
+	txCompl = true;
+}
+
+void DMA2_RxComplete_Callback(void)
+{
+	memset((void *)&txBufCpy, 0, sizeof(txBufCpy));
+	memcpy((void *)&txBufCpy[0], (void *)&rxBuffer[0], sizeof(rxBuffer));
+	memcpy((void *)&txBuffer[0], (void *)&rxBuffer[0], sizeof(rxBuffer));
+}
+
+static void resetDmaTx(void)
+{
+	if (LL_DMA_IsEnabledStream(DMA2, LL_DMA_STREAM_7))
+	{
+		/* Reset DMA */
+		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
+	}
+	memset((void *)&txBuffer, 0, sizeof(txBuffer));
+	LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_7, (uint32_t)txBuffer, LL_USART_DMA_GetRegAddr(USART1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_7));
+	LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_7, sizeof(txBuffer));
+	//LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
+}
+
+static void resetDmaRx(void)
+{
+	if (LL_DMA_IsEnabledStream(DMA2, LL_DMA_STREAM_2))
+	{
+		/* Reset DMA */
+		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+	}
+	memset((void *)&rxBuffer, 0, sizeof(rxBuffer));
+	LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, LL_USART_DMA_GetRegAddr(USART1), (uint32_t)rxBuffer, LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
+	LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_2, sizeof(rxBuffer));
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
+}
+
+void UART1_FrameIdle_Callback(void)
+{
+	LL_GPIO_SetOutputPin(GPIOB, DEBUG_1_Pin);
+	LL_GPIO_ResetOutputPin(GPIOB, DEBUG_1_Pin);
+	rxCompl = true;
+}
+
+static void StartTransfer(void)
+{
+	txCompl = false;
+	txErr = false;
+
+	/* Enable DMA TX Interrupt */
+	LL_USART_EnableDMAReq_TX(USART1);
+
+	/* Enable DMA Channel Rx */
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_7);
+}
 
 /* USER CODE END 4 */
 
@@ -443,10 +563,26 @@ void StartRxTask(void *argument)
 {
   /* USER CODE BEGIN StartRxTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	for (;;) {
+		if (rxCompl == true) {
+			rxCompl = false;
+			resetDmaRx();
+			if ((txBufCpy[0] == 0x20) && (txBufCpy[1] == 0x40)) {
+				/* Placeholder. Parsing of frame will go here */
+				LL_GPIO_SetOutputPin(GPIOB, DEBUG_2_Pin);
+				LL_GPIO_ResetOutputPin(GPIOB, DEBUG_2_Pin);
+			}
+			StartTransfer();
+		}
+
+		if (txCompl == true) {
+			txCompl = false;
+			/* Disable DMA1 Tx Channel */
+			LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_7);
+
+			resetDmaTx();
+		}
+	}
   /* USER CODE END StartRxTask */
 }
 
@@ -460,11 +596,12 @@ void StartRxTask(void *argument)
 void StartHeartbeatTask(void *argument)
 {
   /* USER CODE BEGIN StartHeartbeatTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	LL_GPIO_SetPinMode(GPIOA, GPIO_PIN_5, LL_GPIO_MODE_OUTPUT);
+	/* Infinite loop */
+	for (;;) {
+		LL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		osDelay(500);
+	}
   /* USER CODE END StartHeartbeatTask */
 }
 
